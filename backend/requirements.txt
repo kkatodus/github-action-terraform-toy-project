@@ -1,0 +1,11 @@
+aws-wsgi==0.2.7
+awslambdaric==3.1.1
+blinker==1.9.0
+click==8.2.1
+Flask==3.1.2
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+simplejson==3.20.1
+snapshot-restore-py==1.0.0
+Werkzeug==3.1.3

@@ -1,0 +1,66 @@
+#Names the workflow “infra” (you’ll see this in the Actions tab).
+name: infra
+#Triggers the workflow on pushes to files in the infra/ or backend/ directories, or when manually triggered.
+on:
+  push:
+    paths: ["infra/**", "backend/**"]
+  workflow_dispatch:
+# defines one job "apply" running on github's ubuntu runner
+jobs:
+  # job called apply
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      # allows requesting an OpenID token for cloud auth (used in AWS OIDC setups)
+      id-token: write
+      # allows reading repository contents
+      contents: read
+    steps:
+      # checks out the repository so the workflow can access its contents
+      # this is an action available on Github market place
+      - uses: actions/checkout@v4
+      # we need a python version to install all the dependencies needed for the lambda function
+      # setup-python@v5 just happens to be the latest release on github market place
+      # this just sets up the correct python version on github runner
+      - name: Python for vendoring lambda deps
+        # this python is for packaging the dependencies, also specifies which python to use when packaging the dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+        # installs the python packages that are needed for the lambda function
+        # pip install … -t . places all the dependencies directly inside your backend/ folder (next to your own code).
+        # After this step, your backend directory might look like:
+        # backend/
+        #   app.py
+        #   requirements.txt
+        #   flask/
+        #   requests/
+        #   numpy/
+        #   ...
+        # This is called vendoring, because AWS Lambda doesn’t install dependencies for you — they need to be zipped together with your source code.
+
+      - name: Vendor backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -t .
+      - name: Setup Terraform
+        # installing terraform on github runner
+        uses: hashicorp/setup-terraform@v3
+        # configuring aws credentials on the github runner so that it can create resources via terraform apply
+      - name: Configure AWS creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      - name: Terraform init/plan/apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform plan -out=tfplan \
+            -var="site_bucket_name=${{ secrets.SITE_BUCKET_NAME }}"
+          terraform apply -auto-approve tfplan
+      - name: Show outputs
+        working-directory: infra
+        run: terraform output
