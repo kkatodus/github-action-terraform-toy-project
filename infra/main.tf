@@ -1,5 +1,14 @@
 terraform {
   required_version = ">=1.6.0"
+
+  backend "s3" {
+    bucket         = "kk-terraform-state-apne1"         # your bucket
+    key            = "toy-aws-terraform-gha/terraform.tfstate"
+    region         = "ap-northeast-1"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
